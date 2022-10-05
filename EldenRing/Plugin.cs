@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 using Dalamud.Game;
@@ -66,6 +67,12 @@ namespace EldenRing
             AnimationType.EnemyFelled => this.erEnemyFelledTexture,
         };
 
+        private AudioTrigger DeathSfx => config.DeathSfx switch
+        {
+            Configuration.DeathSfxType.Milenia => AudioTrigger.Milenia,
+            Configuration.DeathSfxType.Old => AudioTrigger.Death
+        };
+
         private enum AnimationState
         {
             NotPlaying,
@@ -80,13 +87,7 @@ namespace EldenRing
             CraftFailed,
             EnemyFelled,
         }
-
-        public enum DeathSfxType
-        {
-            Milenia,
-            Old
-        }
-
+        
         public EldenRing(DalamudPluginInterface pluginInterface)
         {
             pluginInterface.Create<Service>();
@@ -172,11 +173,15 @@ namespace EldenRing
 
             if (config.ShowDeath && isUnconscious && !this.lastFrameUnconscious)
             {
-                this.PlayAnimation(AnimationType.Death);
+                PlayAnimation(AnimationType.Death);
+                if (CheckIsSfxEnabled())
+                {
+                    audioHandler.PlaySound(DeathSfx);
+                }
                 PluginLog.Verbose($"Elden: Player died {isUnconscious}");
             }
 
-            this.lastFrameUnconscious = isUnconscious;
+            lastFrameUnconscious = isUnconscious;
         }
 
         private void Draw()
@@ -308,11 +313,6 @@ namespace EldenRing
 
             this.time.Reset();
             this.time.Start();
-
-            if (this.CheckIsSfxEnabled())
-            {
-                audioHandler.PlaySound(AudioTrigger.Death);
-            }
         }
 
         private unsafe bool CheckIsSfxEnabled()
