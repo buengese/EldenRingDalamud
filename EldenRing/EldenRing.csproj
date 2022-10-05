@@ -43,6 +43,14 @@
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		  <Visible>false</Visible>
 	  </Content>
+      <Content Include="..\Data\snd_milenia_er.wav">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <Visible>false</Visible>
+      </Content>
+      <Content Include="..\Data\snd_enemy_felled_er.wav">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <Visible>false</Visible>
+      </Content>
   </ItemGroup>
 
     <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
