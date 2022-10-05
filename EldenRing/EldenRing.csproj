@@ -12,7 +12,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <Platforms>x64</Platforms>
     <Nullable>enable</Nullable>
     <LangVersion>latest</LangVersion>
@@ -45,13 +45,16 @@
 	  </Content>
   </ItemGroup>
 
-  <PropertyGroup>
-    <DalamudLibPath>$(appdata)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
-  </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+        <DalamudLibPath>$(DALAMUD_PATH)</DalamudLibPath>
+    </PropertyGroup>
+    <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+        <DalamudLibPath>$(AppData)\XIVLauncher\addon\Hooks\dev\</DalamudLibPath>
+    </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="2.1.6" />
-    <PackageReference Include="NAudio" Version="2.0.1" />
+    <PackageReference Include="DalamudPackager" Version="2.1.7" />
+    <PackageReference Include="NAudio" Version="2.1.0" />
     <PackageReference Include="System.ComponentModel.EventBasedAsync" Version="4.3.0" />
     <PackageReference Include="System.Windows.Extensions" Version="6.0.0" />
     <Reference Include="FFXIVClientStructs">

@@ -8,18 +8,8 @@ namespace EldenRing
     // to do any cleanup
     class PluginUI : IDisposable
     {
-        private Configuration configuration;
-
-        private ImGuiScene.TextureWrap goatImage;
-
-        // this extra bool exists for ImGui, since you can't ref a property
-        private bool visible = false;
-        public bool Visible
-        {
-            get { return this.visible; }
-            set { this.visible = value; }
-        }
-
+        private Configuration config;
+        
         private bool settingsVisible = false;
         public bool SettingsVisible
         {
@@ -28,15 +18,13 @@ namespace EldenRing
         }
 
         // passing in the image here just for simplicity
-        public PluginUI(Configuration configuration, ImGuiScene.TextureWrap goatImage)
+        public PluginUI(Configuration configuration)
         {
-            this.configuration = configuration;
-            this.goatImage = goatImage;
+            this.config = configuration;
         }
 
         public void Dispose()
         {
-            this.goatImage.Dispose();
         }
 
         public void Draw()
@@ -48,11 +36,11 @@ namespace EldenRing
             // There are other ways to do this, but it is generally best to keep the number of
             // draw delegates as low as possible.
 
-            DrawMainWindow();
+            //DrawMainWindow();
             DrawSettingsWindow();
         }
 
-        public void DrawMainWindow()
+        /*public void DrawMainWindow()
         {
             if (!Visible)
             {
@@ -78,6 +66,11 @@ namespace EldenRing
                 ImGui.Unindent(55);
             }
             ImGui.End();
+        }*/
+
+        public void ToggleSettings()
+        {
+            SettingsVisible = !SettingsVisible;
         }
 
         public void DrawSettingsWindow()
@@ -88,16 +81,39 @@ namespace EldenRing
             }
 
             ImGui.SetNextWindowSize(new Vector2(232, 75), ImGuiCond.Always);
-            if (ImGui.Begin("A Wonderful Configuration Window", ref this.settingsVisible,
+            if (ImGui.Begin("Eldenring Plugin Config", ref this.settingsVisible,
                 ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
             {
                 // can't ref a property, so use a local copy
-                var configValue = this.configuration.SomePropertyToBeSavedAndWithADefault;
-                if (ImGui.Checkbox("Random Config Bool", ref configValue))
+                var configValue = this.config.ShowEnemyFelled;
+                if (ImGui.Checkbox("Show Enemy Killed", ref configValue))
                 {
-                    this.configuration.SomePropertyToBeSavedAndWithADefault = configValue;
+                    this.config.ShowEnemyFelled = configValue;
                     // can save immediately on change, if you don't want to provide a "Save and Close" button
-                    this.configuration.Save();
+                    this.config.Save();
+                }
+                
+                configValue = this.config.ShowCraftFailed;
+                if (ImGui.Checkbox("Show Craft Failed", ref configValue))
+                {
+                    this.config.ShowCraftFailed = configValue;
+                    // can save immediately on change, if you don't want to provide a "Save and Close" button
+                    this.config.Save();
+                }
+                
+                configValue = this.config.ShowEnemyFelled;
+                if (ImGui.Checkbox("Show Death", ref configValue))
+                {
+                    this.config.ShowDeath = configValue;
+                    // can save immediately on change, if you don't want to provide a "Save and Close" button
+                    this.config.Save();
+                }
+
+                var value = (int)this.config.DeathSfx;
+                if (ImGui.Combo("Death Sfx", ref value, new[] {"Milenia", "Old"}, 2))
+                {
+                    this.config.DeathSfx = (EldenRing.DeathSfxType) value;
+                    this.config.Save();
                 }
             }
             ImGui.End();

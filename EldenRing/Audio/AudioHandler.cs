@@ -8,7 +8,9 @@ namespace EldenRing.Audio
 {
     public enum AudioTrigger
     {
-        Death
+        Death,
+        Milenia,
+        EnemyFelled
     }
 
     // Cached sound concept lovingly borrowed from: https://markheath.net/post/fire-and-forget-audio-playback-with
@@ -72,16 +74,20 @@ namespace EldenRing.Audio
             }
         }
 
-        public AudioHandler(string deathPath)
+        public AudioHandler()
         {
             outputDevice = new WaveOutEvent();
             sounds = new Dictionary<AudioTrigger, CachedSound>();
-            sounds.Add(AudioTrigger.Death, new(deathPath));
             mixer = new(WaveFormat.CreateIeeeFloatWaveFormat(48000, 2));
             mixer.ReadFully = true;
             sampleProvider = new(mixer);
             outputDevice.Init(sampleProvider);
             outputDevice.Play();
+        }
+
+        public void LoadSound(AudioTrigger trigger, string path)
+        {
+            sounds.Add(trigger, new CachedSound(path));
         }
 
         private ISampleProvider ConvertToRightChannelCount(ISampleProvider input)
