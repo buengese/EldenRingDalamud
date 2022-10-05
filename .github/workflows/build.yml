@@ -11,7 +11,7 @@ on:
 env:
   SOLUTION_NAME: EldenRing
   INTERNAL_NAME: EldenRing
-  RELEASE_DIR: bin\x64\Release
+  RELEASE_DIR: EldenRing\bin\x64\Release
   PERSONAL_PLUGIN_REPO: buengese/DalamudPlugins
 
 jobs:
