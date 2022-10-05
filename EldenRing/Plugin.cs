@@ -129,6 +129,7 @@ namespace EldenRing
 
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += pluginUI.Draw;
+            pluginInterface.UiBuilder.OpenConfigUi += pluginUI.ToggleSettings;
             Service.Framework.Update += FrameworkOnUpdate;
             Service.ChatGui.ChatMessage += ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
@@ -363,6 +364,7 @@ namespace EldenRing
         {
             Service.Interface.UiBuilder.Draw -= Draw;
             Service.Interface.UiBuilder.Draw -= pluginUI.Draw;
+            Service.Interface.UiBuilder.OpenConfigUi -= pluginUI.ToggleSettings;
             Service.Framework.Update -= FrameworkOnUpdate;
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
@@ -412,7 +414,7 @@ namespace EldenRing
                     break;
                 case "":
                     // in response to the slash command, just display our main ui
-                    //this.PluginUi.Visible = true;
+                    pluginUI.SettingsVisible = true;
                     Service.ChatGui.PrintError("Please use \"/eldenring vol <num>\" to control volume");
                     break;
                 default:
