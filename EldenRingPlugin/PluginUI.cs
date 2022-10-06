@@ -110,7 +110,7 @@ namespace EldenRing
                 }
 
                 var value = (int)this.config.DeathSfx;
-                if (ImGui.Combo("Death Sfx", ref value, new[] {"Milenia", "Old"}, 2))
+                if (ImGui.Combo("Death Sfx", ref value, new[] {"Malenia", "Old"}, 2))
                 {
                     this.config.DeathSfx = (Configuration.DeathSfxType) value;
                     this.config.Save();

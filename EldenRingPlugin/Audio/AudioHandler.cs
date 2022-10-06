@@ -9,7 +9,7 @@ namespace EldenRing.Audio
     public enum AudioTrigger
     {
         Death,
-        Milenia,
+        Malenia,
         EnemyFelled
     }
 

@@ -9,7 +9,7 @@ namespace EldenRing
     {
         public enum DeathSfxType
         {
-            Milenia,
+            Malenia,
             Old
         }
         

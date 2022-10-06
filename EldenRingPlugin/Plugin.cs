@@ -69,7 +69,7 @@ namespace EldenRing
 
         private AudioTrigger DeathSfx => config.DeathSfx switch
         {
-            Configuration.DeathSfxType.Milenia => AudioTrigger.Milenia,
+            Configuration.DeathSfxType.Malenia => AudioTrigger.Malenia,
             Configuration.DeathSfxType.Old => AudioTrigger.Death
         };
 
@@ -104,7 +104,7 @@ namespace EldenRing
 
             audioHandler = new();
             audioHandler.LoadSound(AudioTrigger.Death, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_death_er.wav"));
-            audioHandler.LoadSound(AudioTrigger.Milenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_milenia_er.wav"));
+            audioHandler.LoadSound(AudioTrigger.Malenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_milenia_er.wav"));
             audioHandler.LoadSound(AudioTrigger.EnemyFelled, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName, "snd_enemy_felled_er.wav"));
 
             if (erDeathBgTexture == null || erNormalDeathTexture == null || erCraftFailedTexture == null)
