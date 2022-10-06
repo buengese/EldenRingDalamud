@@ -9,6 +9,7 @@
     <PackageProjectUrl></PackageProjectUrl>
 	<NoWarn>IDE0003</NoWarn>
 	<NoWarn>CA1416</NoWarn>
+	<RootNamespace>EldenRing</RootNamespace>
   </PropertyGroup>
 
   <PropertyGroup>

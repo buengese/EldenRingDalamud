@@ -9,9 +9,9 @@ on:
     tags: ['v[0-9].[0-9]+.[0-9]+.[0-9]+']
 
 env:
-  SOLUTION_NAME: EldenRing
-  INTERNAL_NAME: EldenRing
-  RELEASE_DIR: EldenRing\bin\x64\Release\EldenRing
+  SOLUTION_NAME: EldenRingDalamud
+  INTERNAL_NAME: EldenRingPlugin
+  RELEASE_DIR: EldenRingPlugin\bin\x64\Release\EldenRingPlugin
   PERSONAL_PLUGIN_REPO: buengese/DalamudPlugins
 
 jobs:

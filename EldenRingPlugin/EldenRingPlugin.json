@@ -1,10 +1,10 @@
 {
-  "Author": "Roselyn",
+  "Author": "Roselyn, buengese",
   "Name": "Elden Ring April Fools",
   "Punchline": "Recreation of the Elden Ring April Fools joke.",
   "Description": "Currently under development with extra features, should currently function as the April Fools joke did.",
-  "InternalName": "EldenRing",
-  "RepoUrl": "https://github.com/Roselyyn/EldenRingDalamud",
+  "InternalName": "EldenRingPlugin",
+  "RepoUrl": "https://github.com/buengese/EldenRingDalamud",
   "Tags": [
     "Elden Ring",
     "plugin",
