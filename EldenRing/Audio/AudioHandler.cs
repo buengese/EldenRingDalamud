@@ -78,7 +78,7 @@ namespace EldenRing.Audio
         {
             outputDevice = new WaveOutEvent();
             sounds = new Dictionary<AudioTrigger, CachedSound>();
-            mixer = new(WaveFormat.CreateIeeeFloatWaveFormat(48000, 2));
+            mixer = new(WaveFormat.CreateIeeeFloatWaveFormat(44100, 2));
             mixer.ReadFully = true;
             sampleProvider = new(mixer);
             outputDevice.Init(sampleProvider);
