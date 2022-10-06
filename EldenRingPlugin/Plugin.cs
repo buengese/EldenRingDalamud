@@ -152,10 +152,10 @@ namespace EldenRing
             {
                 Task.Delay(1000).ContinueWith(t =>
                 {
-                    this.PlayAnimation(AnimationType.EnemyFelled);
                     if (this.currentState != AnimationState.NotPlaying)
                         return;
                     this.audioHandler.PlaySound(AudioTrigger.EnemyFelled);
+                    this.PlayAnimation(AnimationType.EnemyFelled);
                 });
             }
         }
