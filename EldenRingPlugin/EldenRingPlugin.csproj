@@ -44,7 +44,11 @@
 		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		  <Visible>false</Visible>
 	  </Content>
-      <Content Include="..\Data\snd_milenia_er.wav">
+      <Content Include="..\Data\snd_malenia_death_er.wav">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <Visible>false</Visible>
+      </Content>
+      <Content Include="..\Data\snd_malenia_intro_er.wav">
           <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
           <Visible>false</Visible>
       </Content>
