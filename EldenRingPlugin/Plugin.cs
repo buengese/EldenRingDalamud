@@ -19,6 +19,7 @@ using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 
 using Dalamud.Game.Command;
+using Dalamud.Game.Gui;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using EldenRing.Audio;
@@ -150,6 +151,11 @@ namespace EldenRing
             
             var cat = *(ushort*)(dataptr + 0x00);
             var updateType = *(uint*)(dataptr + 0x08);
+
+            if (cat == 0x60)
+            { 
+                Service.ChatGui.Print($"Director update: {updateType:x8}");
+            }
 
             if (cat == 0x6D && updateType == 0x40000003)
             {
