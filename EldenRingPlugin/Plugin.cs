@@ -152,7 +152,7 @@ namespace EldenRing
             var cat = *(ushort*)(dataptr + 0x00);
             var updateType = *(uint*)(dataptr + 0x08);
 
-            if (cat == 0x60)
+            if (cat == 0x6D)
             { 
                 Service.ChatGui.Print($"Director update: {updateType:x8}");
             }
