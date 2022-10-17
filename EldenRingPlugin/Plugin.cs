@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 using Dalamud.Game;
@@ -30,7 +29,7 @@ namespace EldenRing
     {
         public string Name => "Elden Ring April Fools";
 
-        private const string commandName = "/eldenring";
+        private const string CommandName = "/eldenring";
 
         private readonly TextureWrap erDeathBgTexture;
         private readonly TextureWrap erNormalDeathTexture;
@@ -39,12 +38,12 @@ namespace EldenRing
 
         private readonly string synthesisFailsMessage;
 
-        private readonly Stopwatch time = new Stopwatch();
+        private readonly Stopwatch time = new();
 
-        private AudioHandler audioHandler { get; init; }
-        private PluginUI pluginUI { get; init; }
-        
-        public Configuration config { get; private set; }
+        private AudioHandler AudioHandler { get; }
+        private PluginUI PluginUI { get; }
+
+        private Configuration Config { get; }
 
         private bool assetsReady = false;
 
@@ -67,7 +66,7 @@ namespace EldenRing
             AnimationType.EnemyFelled => this.erEnemyFelledTexture,
         };
 
-        private AudioTrigger DeathSfx => config.DeathSfx switch
+        private AudioTrigger DeathSfx => Config.DeathSfx switch
         {
             Configuration.DeathSfxType.Malenia => AudioTrigger.Malenia,
             Configuration.DeathSfxType.Old => AudioTrigger.Death
@@ -86,26 +85,29 @@ namespace EldenRing
             Death,
             CraftFailed,
             EnemyFelled,
+            CombatIntro
         }
         
         public EldenRing(DalamudPluginInterface pluginInterface)
         {
             pluginInterface.Create<Service>();
 
-            config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
-            config.Initialize(pluginInterface);
+            Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+            Config.Initialize(pluginInterface);
 
-            pluginUI = new PluginUI(config);
+            PluginUI = new PluginUI(Config);
 
             erDeathBgTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_death_bg.png"))!;
             erNormalDeathTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_normal_death.png"))!;
             erCraftFailedTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_craft_failed.png"))!;
             erEnemyFelledTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_enemy_felled.png"))!;
 
-            audioHandler = new();
-            audioHandler.LoadSound(AudioTrigger.Death, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_death_er.wav"));
-            audioHandler.LoadSound(AudioTrigger.Malenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_milenia_er.wav"));
-            audioHandler.LoadSound(AudioTrigger.EnemyFelled, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName, "snd_enemy_felled_er.wav"));
+            AudioHandler = new();
+            AudioHandler.LoadSound(AudioTrigger.Death, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_death_er.wav"));
+            AudioHandler.LoadSound(AudioTrigger.Malenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_death_er.wav"));
+            AudioHandler.LoadSound(AudioTrigger.MaleniaKilled, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_enemy_felled_er.wav"));
+            AudioHandler.LoadSound(AudioTrigger.MaleniaIntro, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_intro_er.wav"));
+            
 
             if (erDeathBgTexture == null || erNormalDeathTexture == null || erCraftFailedTexture == null)
             {
@@ -113,12 +115,12 @@ namespace EldenRing
                 return;
             }
 
-            audioHandler.Volume = this.config.Volume;
-            int vol = (int)(this.config.Volume * 100f);
+            AudioHandler.Volume = this.Config.Volume;
+            int vol = (int)(this.Config.Volume * 100f);
             PluginLog.Debug($"Volume set to {vol}%");
 
 
-            Service.CommandManager.AddHandler(commandName, new CommandInfo(OnCommand)
+            Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Used to control the volume of the audio using \"vol 0-100\""
             });
@@ -129,16 +131,17 @@ namespace EldenRing
             assetsReady = true;
 
             pluginInterface.UiBuilder.Draw += Draw;
-            pluginInterface.UiBuilder.Draw += pluginUI.Draw;
-            pluginInterface.UiBuilder.OpenConfigUi += pluginUI.ToggleSettings;
+            pluginInterface.UiBuilder.Draw += PluginUI.Draw;
+            pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
             Service.Framework.Update += FrameworkOnUpdate;
+            Service.Condition.ConditionChange += ConditionOnConditionChange;
             Service.ChatGui.ChatMessage += ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
         }
 
         private unsafe void GameNetworkOnNetworkMessage(IntPtr dataptr, ushort opcode, uint sourceactorid, uint targetactorid, NetworkMessageDirection direction)
         {
-            if (!config.ShowEnemyFelled)
+            if (!Config.ShowEnemyFelled)
                 return;
             
             var dataManager = Service.DataManager;
@@ -152,20 +155,32 @@ namespace EldenRing
             {
                 Task.Delay(1000).ContinueWith(t =>
                 {
-                    if (this.currentState != AnimationState.NotPlaying)
-                        return;
-                    this.audioHandler.PlaySound(AudioTrigger.EnemyFelled);
                     this.PlayAnimation(AnimationType.EnemyFelled);
+                    if (this.AudioHandler.IsPlaying())
+                        return;
+                    this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
                 });
             }
         }
 
         private void ChatGuiOnChatMessage(XivChatType type, uint senderid, ref SeString sender, ref SeString message, ref bool ishandled)
         {
-            if (config.ShowCraftFailed && message.TextValue.Contains(this.synthesisFailsMessage))
+            if (Config.ShowCraftFailed && message.TextValue.Contains(this.synthesisFailsMessage))
             {
                 this.PlayAnimation(AnimationType.CraftFailed);
                 PluginLog.Verbose("Elden: Craft failed");
+            }
+        }
+
+        private void ConditionOnConditionChange(ConditionFlag flag, bool value)
+        {
+            if (Config.ShowIntro && flag == ConditionFlag.InCombat && value)
+            {
+                this.PlayAnimation(AnimationType.CombatIntro);
+                if (this.AudioHandler.IsPlaying())
+                    return;
+                this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
+                PluginLog.Verbose("Elden: Combat started");
             }
         }
 
@@ -174,12 +189,12 @@ namespace EldenRing
             //var condition = Service<Condition>.Get();
             var isUnconscious = Service.Condition[ConditionFlag.Unconscious];
 
-            if (config.ShowDeath && isUnconscious && !this.lastFrameUnconscious)
+            if (Config.ShowDeath && isUnconscious && !this.lastFrameUnconscious)
             {
                 PlayAnimation(AnimationType.Death);
                 if (CheckIsSfxEnabled())
                 {
-                    audioHandler.PlaySound(DeathSfx);
+                    AudioHandler.PlaySound(DeathSfx);
                 }
                 PluginLog.Verbose($"Elden: Player died {isUnconscious}");
             }
@@ -366,8 +381,8 @@ namespace EldenRing
         public void Dispose()
         {
             Service.Interface.UiBuilder.Draw -= Draw;
-            Service.Interface.UiBuilder.Draw -= pluginUI.Draw;
-            Service.Interface.UiBuilder.OpenConfigUi -= pluginUI.ToggleSettings;
+            Service.Interface.UiBuilder.Draw -= PluginUI.Draw;
+            Service.Interface.UiBuilder.OpenConfigUi -= PluginUI.ToggleSettings;
             Service.Framework.Update -= FrameworkOnUpdate;
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
@@ -375,10 +390,10 @@ namespace EldenRing
             erDeathBgTexture.Dispose();
             erNormalDeathTexture.Dispose();
             erCraftFailedTexture.Dispose();
-            pluginUI.Dispose();
-            config.Save();
+            PluginUI.Dispose();
+            Config.Save();
 
-            Service.CommandManager.RemoveHandler(commandName);
+            Service.CommandManager.RemoveHandler(CommandName);
         }
 
         private void SetVolume(string vol)
@@ -387,8 +402,8 @@ namespace EldenRing
             {
                 var newVol = int.Parse(vol) / 100f;
                 PluginLog.Debug($"{Name}: Setting volume to {newVol}");
-                audioHandler.Volume = newVol;
-                config.Volume = newVol;
+                AudioHandler.Volume = newVol;
+                Config.Volume = newVol;
                 Service.ChatGui.Print($"Volume set to {vol}%");
             }
             catch (Exception)
@@ -417,10 +432,8 @@ namespace EldenRing
                     break;
                 case "":
                     // in response to the slash command, just display our main ui
-                    pluginUI.SettingsVisible = true;
+                    PluginUI.SettingsVisible = true;
                     Service.ChatGui.PrintError("Please use \"/eldenring vol <num>\" to control volume");
-                    break;
-                default:
                     break;
             }
         }

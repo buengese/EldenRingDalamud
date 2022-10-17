@@ -108,6 +108,14 @@ namespace EldenRing
                     // can save immediately on change, if you don't want to provide a "Save and Close" button
                     this.config.Save();
                 }
+                
+                configValue = this.config.ShowIntro;
+                if (ImGui.Checkbox("Combat start Sfx", ref configValue))
+                {
+                    this.config.ShowIntro = configValue;
+                    // can save immediately on change, if you don't want to provide a "Save and Close" button
+                    this.config.Save();
+                }
 
                 var value = (int)this.config.DeathSfx;
                 if (ImGui.Combo("Death Sfx", ref value, new[] {"Malenia", "Old"}, 2))

@@ -23,6 +23,8 @@ namespace EldenRing
 
         public bool ShowDeath { get; set; } = true;
 
+        public bool ShowIntro { get; set; } = true;
+
         public DeathSfxType DeathSfx { get; set; } = DeathSfxType.Old;
 
         // the below exist just to make saving less cumbersome

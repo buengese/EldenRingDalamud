@@ -10,7 +10,8 @@ namespace EldenRing.Audio
     {
         Death,
         Malenia,
-        EnemyFelled
+        MaleniaKilled,
+        MaleniaIntro
     }
 
     // Cached sound concept lovingly borrowed from: https://markheath.net/post/fire-and-forget-audio-playback-with
@@ -107,6 +108,11 @@ namespace EldenRing.Audio
         private void AddMixerInput(ISampleProvider input)
         {
             mixer.AddMixerInput(ConvertToRightChannelCount(input));
+        }
+
+        public bool IsPlaying()
+        {
+            return mixer.MixerInputs.Any();
         }
 
         public void PlaySound(AudioTrigger trigger)
