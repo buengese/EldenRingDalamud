@@ -81,6 +81,20 @@ namespace EldenRing
             FadeOut,
         }
 
+        private enum DirectorUpdateType : uint
+        {
+            DutyCommence = 0x40000001,
+            DutyComplete = 0x40000003,
+            DutyUpdate = 0x40000007,
+            
+            MaybeTrialStart = 0x00000000,
+            
+            DungeonStart = 0x80000000,
+            DungeonBossStartEnd15 = 0x80000015,
+            DungeonBossStartEnd16 = 0x80000016,
+            DungeonSubBossStartEnd1 = 0x80000001,
+        }
+
         private enum AnimationType
         {
             Death,
@@ -153,8 +167,9 @@ namespace EldenRing
             var updateType = *(uint*)(dataptr + 0x08);
 
             if (cat == 0x6D)
-            { 
-                Service.ChatGui.Print($"Director update: {updateType:x8}");
+            {
+                var name = Enum.GetName(typeof(DirectorUpdateType), updateType) ?? "unknown";
+                Service.ChatGui.Print($"Director update: {name} ({updateType:x8})");
             }
 
             if (cat == 0x6D && updateType == 0x40000003)
