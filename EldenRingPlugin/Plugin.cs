@@ -85,14 +85,19 @@ namespace EldenRing
         {
             DutyCommence = 0x40000001,
             DutyComplete = 0x40000003,
+            DutyWipe = 0x40000005,
+            DutyRecommence = 0x40000006,
             DutyUpdate = 0x40000007,
+            DutyBarrierUp = 0x40000012,
             
-            MaybeTrialStart = 0x00000000,
+            WeirdShit = 0x00000000,
             
-            DungeonStart = 0x80000000,
+            DungeonSetup = 0x80000000,
+            
+            MaybeMusicChange = 0x80000001,
+
             DungeonBossStartEnd15 = 0x80000015,
             DungeonBossStartEnd16 = 0x80000016,
-            DungeonSubBossStartEnd1 = 0x80000001,
         }
 
         private enum AnimationType
