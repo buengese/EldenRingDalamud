@@ -1,12 +1,10 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Authors></Authors>
-    <Company></Company>
+    <Authors>buengese</Authors>
     <Version>0.0.1.2</Version>
     <Description>Elden Ring April Fools addon</Description>
-    <Copyright></Copyright>
-    <PackageProjectUrl></PackageProjectUrl>
+    <Copyright>2022</Copyright>
 	<NoWarn>IDE0003</NoWarn>
 	<NoWarn>CA1416</NoWarn>
 	<RootNamespace>EldenRing</RootNamespace>

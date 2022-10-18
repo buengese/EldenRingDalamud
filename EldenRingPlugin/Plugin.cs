@@ -19,7 +19,6 @@ using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 
 using Dalamud.Game.Command;
-using Dalamud.Game.Gui;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using EldenRing.Audio;
@@ -45,16 +44,14 @@ namespace EldenRing
         private PluginUI PluginUI { get; }
 
         private Configuration Config { get; }
-
-        private bool assetsReady = false;
-
+        
         private AnimationState currentState = AnimationState.NotPlaying;
         private AnimationType currentAnimationType = AnimationType.Death;
 
         private Easing alphaEasing;
         private Easing scaleEasing;
 
-        private bool lastFrameUnconscious = false;
+        private bool lastFrameUnconscious;
 
         private int msFadeInTime = 1000;
         private int msFadeOutTime = 2000;
@@ -65,12 +62,14 @@ namespace EldenRing
             AnimationType.Death => this.erNormalDeathTexture,
             AnimationType.CraftFailed => this.erCraftFailedTexture,
             AnimationType.EnemyFelled => this.erEnemyFelledTexture,
+            _ => throw new ArgumentOutOfRangeException()
         };
 
         private AudioTrigger DeathSfx => Config.DeathSfx switch
         {
             Configuration.DeathSfxType.Malenia => AudioTrigger.Malenia,
-            Configuration.DeathSfxType.Old => AudioTrigger.Death
+            Configuration.DeathSfxType.Old => AudioTrigger.Death,
+            _ => throw new ArgumentOutOfRangeException()
         };
 
         private enum AnimationState
@@ -81,6 +80,7 @@ namespace EldenRing
             FadeOut,
         }
 
+        // ReSharper disable UnusedMember.Local
         private enum DirectorUpdateType : uint
         {
             DutyCommence = 0x40000001,
@@ -147,14 +147,11 @@ namespace EldenRing
 
 
             synthesisFailsMessage = Service.DataManager.GetExcelSheet<LogMessage>()!.GetRow(1160)!.Text.ToDalamudString().TextValue;
-
-            assetsReady = true;
-
+            
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += PluginUI.Draw;
             pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
             Service.Framework.Update += FrameworkOnUpdate;
-            Service.Condition.ConditionChange += ConditionOnConditionChange;
             Service.ChatGui.ChatMessage += ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
         }
@@ -175,17 +172,27 @@ namespace EldenRing
             {
                 var name = Enum.GetName(typeof(DirectorUpdateType), updateType) ?? "unknown";
                 Service.ChatGui.Print($"Director update: {name} ({updateType:x8})");
-            }
 
-            if (cat == 0x6D && updateType == 0x40000003)
-            {
-                Task.Delay(1000).ContinueWith(t =>
+                if (updateType == (uint) DirectorUpdateType.DutyComplete)
                 {
-                    this.PlayAnimation(AnimationType.EnemyFelled);
-                    if (this.AudioHandler.IsPlaying())
-                        return;
-                    this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
-                });
+                    Task.Delay(1000).ContinueWith(_ =>
+                    {
+                        this.PlayAnimation(AnimationType.EnemyFelled);
+                        if (this.AudioHandler.IsPlaying())
+                            return;
+                        this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
+                    });
+                }
+
+                if (updateType is (uint) DirectorUpdateType.DutyCommence or (uint) DirectorUpdateType.DutyRecommence)
+                {
+                    Task.Delay(1000).ContinueWith(_ =>
+                    {
+                        if (this.AudioHandler.IsPlaying())
+                            return;
+                        this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
+                    });
+                }
             }
         }
 
@@ -195,18 +202,6 @@ namespace EldenRing
             {
                 this.PlayAnimation(AnimationType.CraftFailed);
                 PluginLog.Verbose("Elden: Craft failed");
-            }
-        }
-
-        private void ConditionOnConditionChange(ConditionFlag flag, bool value)
-        {
-            if (Config.ShowIntro && flag == ConditionFlag.InCombat && value)
-            {
-                this.PlayAnimation(AnimationType.CombatIntro);
-                if (this.AudioHandler.IsPlaying())
-                    return;
-                this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
-                PluginLog.Verbose("Elden: Combat started");
             }
         }
 
@@ -248,8 +243,8 @@ namespace EldenRing
             {
                 if (this.currentState != AnimationState.NotPlaying)
                 {
-                    this.alphaEasing?.Update();
-                    this.scaleEasing?.Update();
+                    this.alphaEasing.Update();
+                    this.scaleEasing.Update();
                 }
 
                 switch (this.currentState)
