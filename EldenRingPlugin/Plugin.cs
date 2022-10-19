@@ -3,7 +3,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Threading.Tasks;
-
+using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
@@ -22,6 +22,7 @@ using Dalamud.Game.Command;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using EldenRing.Audio;
+using Lumina.Excel;
 
 namespace EldenRing
 {
@@ -36,13 +37,13 @@ namespace EldenRing
         private readonly TextureWrap erCraftFailedTexture;
         private readonly TextureWrap erEnemyFelledTexture;
 
+        private readonly ExcelSheet<TerritoryType> territories;
         private readonly string synthesisFailsMessage;
 
         private readonly Stopwatch time = new();
 
         private AudioHandler AudioHandler { get; }
         private PluginUI PluginUI { get; }
-
         private Configuration Config { get; }
         
         private AnimationState currentState = AnimationState.NotPlaying;
@@ -94,7 +95,7 @@ namespace EldenRing
             
             DungeonSetup = 0x80000000,
             
-            MaybeMusicChange = 0x80000001,
+            MusicChange = 0x80000001,
 
             DungeonBossStartEnd15 = 0x80000015,
             DungeonBossStartEnd16 = 0x80000016,
@@ -147,7 +148,10 @@ namespace EldenRing
 
 
             synthesisFailsMessage = Service.DataManager.GetExcelSheet<LogMessage>()!.GetRow(1160)!.Text.ToDalamudString().TextValue;
+            this.territories = Service.DataManager.GetExcelSheet<TerritoryType>()!;
             
+            var territories = Service.DataManager.GetExcelSheet<TerritoryType>();
+
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += PluginUI.Draw;
             pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
@@ -399,6 +403,14 @@ namespace EldenRing
             }
         }
 
+        public void GetContentType()
+        {
+            var territory = territories.GetRow(Service.ClientState.TerritoryType);
+            var content = territory?.ContentFinderCondition.Value?.ContentType.Value?.Name;
+            Service.ChatGui.Print($"ContentType: {content}");
+        }
+
+
         public void Dispose()
         {
             Service.Interface.UiBuilder.Draw -= Draw;
@@ -457,6 +469,7 @@ namespace EldenRing
                     Service.ChatGui.PrintError("Please use \"/eldenring vol <num>\" to control volume");
                     break;
             }
+            GetContentType();
         }
     }
 }
