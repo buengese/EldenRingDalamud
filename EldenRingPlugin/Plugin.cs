@@ -197,10 +197,13 @@ namespace EldenRing
                         this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
                     });
                 }
-                if (updateType == (uint?) DirectorUpdateType.MusicChange && IsDungeon() && Config.ShowIntro)
+                if (updateType == (uint) DirectorUpdateType.MusicChange && IsDungeon() && Config.ShowIntro)
                 {
-                    if (musicChangeCounter++ == 5)
+                    musicChangeCounter++;
+                    PluginLog.Verbose($"Elden: musicChangeCounter: {musicChangeCounter}");
+                    if (musicChangeCounter == 5)
                     {
+                        PluginLog.Verbose("Elden: Malenia Intro");
                         Task.Delay(1000).ContinueWith(_ =>
                         {
                             if (this.AudioHandler.IsPlaying())
@@ -212,6 +215,8 @@ namespace EldenRing
                 if (updateType == (uint?) DirectorUpdateType.DutyCommence && IsDungeon())
                 {
                     musicChangeCounter = 0;
+                    PluginLog.Verbose($"Elden: ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
+                    PluginLog.Verbose($"Elden: reset musicChangeCounter: {musicChangeCounter}");
                 }
             }
         }
@@ -446,12 +451,12 @@ namespace EldenRing
 
         private bool IsDungeon()
         {
-            return GetContentType() == (uint?) ContentType.Dungeon;
+            return GetContentType() == (uint) ContentType.Dungeon;
         }
 
         private bool Is8ManDuty()
         {
-            return GetContentType() == (uint?) ContentType.Trial || GetContentType() == (uint?) ContentType.Raid;
+            return GetContentType() == (uint) ContentType.Trial || GetContentType() == (uint) ContentType.Raid;
         }
 
 
