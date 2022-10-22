@@ -2,8 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Dalamud.Data;
 using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
@@ -58,6 +58,8 @@ namespace EldenRing
         private int msFadeOutTime = 2000;
         private int msWaitTime = 1600;
 
+        private int musicChangeCounter = 0;
+
         private TextureWrap TextTexture => this.currentAnimationType switch
         {
             AnimationType.Death => this.erNormalDeathTexture,
@@ -91,10 +93,7 @@ namespace EldenRing
             DutyUpdate = 0x40000007,
             DutyBarrierUp = 0x40000012,
             
-            WeirdShit = 0x00000000,
-            
             DungeonSetup = 0x80000000,
-            
             MusicChange = 0x80000001,
 
             DungeonBossStartEnd15 = 0x80000015,
@@ -107,6 +106,14 @@ namespace EldenRing
             CraftFailed,
             EnemyFelled,
             CombatIntro
+        }
+
+        private enum ContentType : uint
+        {
+            Dungeon = 2,
+            Trial = 4,
+            Raid = 5,
+            Ultimate = 28
         }
         
         public EldenRing(DalamudPluginInterface pluginInterface)
@@ -148,21 +155,21 @@ namespace EldenRing
 
 
             synthesisFailsMessage = Service.DataManager.GetExcelSheet<LogMessage>()!.GetRow(1160)!.Text.ToDalamudString().TextValue;
-            this.territories = Service.DataManager.GetExcelSheet<TerritoryType>()!;
+            territories = Service.DataManager.GetExcelSheet<TerritoryType>()!;
             
-            var territories = Service.DataManager.GetExcelSheet<TerritoryType>();
 
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += PluginUI.Draw;
             pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
-            Service.Framework.Update += FrameworkOnUpdate;
+            // Service.Framework.Update += FrameworkOnUpdate;
             Service.ChatGui.ChatMessage += ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
+            Service.Condition.ConditionChange += ConditionOnChanged;
         }
 
         private unsafe void GameNetworkOnNetworkMessage(IntPtr dataptr, ushort opcode, uint sourceactorid, uint targetactorid, NetworkMessageDirection direction)
         {
-            if (!Config.ShowEnemyFelled)
+            if (!(Config.ShowEnemyFelled || Config.ShowIntro))
                 return;
             
             var dataManager = Service.DataManager;
@@ -174,10 +181,13 @@ namespace EldenRing
 
             if (cat == 0x6D)
             {
-                var name = Enum.GetName(typeof(DirectorUpdateType), updateType) ?? "unknown";
-                Service.ChatGui.Print($"Director update: {name} ({updateType:x8})");
+                if (Config.ShowDebug)
+                {
+                    var name = Enum.GetName(typeof(DirectorUpdateType), updateType) ?? "unknown";
+                    Service.ChatGui.Print($"Director update: {name} ({updateType:x8})");
+                }
 
-                if (updateType == (uint) DirectorUpdateType.DutyComplete)
+                if (updateType == (uint) DirectorUpdateType.DutyComplete && Config.ShowEnemyFelled)
                 {
                     Task.Delay(1000).ContinueWith(_ =>
                     {
@@ -187,18 +197,26 @@ namespace EldenRing
                         this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
                     });
                 }
-
-                if (updateType is (uint) DirectorUpdateType.DutyCommence or (uint) DirectorUpdateType.DutyRecommence)
+                if (updateType == (uint?) DirectorUpdateType.MusicChange && IsDungeon() && Config.ShowIntro)
                 {
-                    Task.Delay(1000).ContinueWith(_ =>
+                    if (musicChangeCounter++ == 5)
                     {
-                        if (this.AudioHandler.IsPlaying())
-                            return;
-                        this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
-                    });
+                        Task.Delay(1000).ContinueWith(_ =>
+                        {
+                            if (this.AudioHandler.IsPlaying())
+                                return;
+                            this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
+                        });
+                    }
+                }
+                if (updateType == (uint?) DirectorUpdateType.DutyCommence && IsDungeon())
+                {
+                    musicChangeCounter = 0;
                 }
             }
         }
+        
+        
 
         private void ChatGuiOnChatMessage(XivChatType type, uint senderid, ref SeString sender, ref SeString message, ref bool ishandled)
         {
@@ -209,9 +227,8 @@ namespace EldenRing
             }
         }
 
-        private void FrameworkOnUpdate(Framework framework)
+        /*private void FrameworkOnUpdate(Framework framework)
         {
-            //var condition = Service<Condition>.Get();
             var isUnconscious = Service.Condition[ConditionFlag.Unconscious];
 
             if (Config.ShowDeath && isUnconscious && !this.lastFrameUnconscious)
@@ -225,6 +242,24 @@ namespace EldenRing
             }
 
             lastFrameUnconscious = isUnconscious;
+        }*/
+
+        private void ConditionOnChanged(ConditionFlag flag, bool value)
+        {
+            if (Config.ShowIntro && Service.Condition[ConditionFlag.BoundByDuty] 
+                                 && flag == ConditionFlag.InCombat && value && Is8ManDuty())
+            {
+                
+            }
+            if (Config.ShowDeath && flag == ConditionFlag.Unconscious && value)
+            {
+                PlayAnimation(AnimationType.Death);
+                if (CheckIsSfxEnabled())
+                {
+                    AudioHandler.PlaySound(DeathSfx);
+                }
+                PluginLog.Verbose($"Elden: Player died {value}");
+            }
         }
 
         private void Draw()
@@ -403,11 +438,20 @@ namespace EldenRing
             }
         }
 
-        public void GetContentType()
+        private uint? GetContentType()
         {
             var territory = territories.GetRow(Service.ClientState.TerritoryType);
-            var content = territory?.ContentFinderCondition.Value?.ContentType.Value?.Name;
-            Service.ChatGui.Print($"ContentType: {content}");
+            return territory?.ContentFinderCondition.Value?.ContentType.Row;
+        }
+
+        private bool IsDungeon()
+        {
+            return GetContentType() == (uint?) ContentType.Dungeon;
+        }
+
+        private bool Is8ManDuty()
+        {
+            return GetContentType() == (uint?) ContentType.Trial || GetContentType() == (uint?) ContentType.Raid;
         }
 
 
@@ -416,7 +460,7 @@ namespace EldenRing
             Service.Interface.UiBuilder.Draw -= Draw;
             Service.Interface.UiBuilder.Draw -= PluginUI.Draw;
             Service.Interface.UiBuilder.OpenConfigUi -= PluginUI.ToggleSettings;
-            Service.Framework.Update -= FrameworkOnUpdate;
+            // Service.Framework.Update -= FrameworkOnUpdate;
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
 
@@ -469,7 +513,6 @@ namespace EldenRing
                     Service.ChatGui.PrintError("Please use \"/eldenring vol <num>\" to control volume");
                     break;
             }
-            GetContentType();
         }
     }
 }

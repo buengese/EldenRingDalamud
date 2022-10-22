@@ -80,9 +80,7 @@ namespace EldenRing
                 return;
             }
 
-            ImGui.SetNextWindowSize(new Vector2(232, 150), ImGuiCond.Always);
-            if (ImGui.Begin("Eldenring Plugin Config", ref this.settingsVisible,
-                ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
+            if (ImGui.Begin("Eldenring Plugin Config", ref this.settingsVisible, ImGuiWindowFlags.AlwaysAutoResize))
             {
                 // can't ref a property, so use a local copy
                 var configValue = this.config.ShowEnemyFelled;
@@ -101,12 +99,21 @@ namespace EldenRing
                     this.config.Save();
                 }
                 
-                configValue = this.config.ShowEnemyFelled;
+                configValue = this.config.ShowDeath;
                 if (ImGui.Checkbox("Show Death", ref configValue))
                 {
                     this.config.ShowDeath = configValue;
                     // can save immediately on change, if you don't want to provide a "Save and Close" button
                     this.config.Save();
+                }
+                if (this.config.ShowDeath)
+                {
+                    var value = (int)this.config.DeathSfx;
+                    if (ImGui.Combo("Death Sfx", ref value, new[] {"Malenia", "Old"}, 2))
+                    {
+                        this.config.DeathSfx = (Configuration.DeathSfxType) value;
+                        this.config.Save();
+                    }
                 }
                 
                 configValue = this.config.ShowIntro;
@@ -116,11 +123,13 @@ namespace EldenRing
                     // can save immediately on change, if you don't want to provide a "Save and Close" button
                     this.config.Save();
                 }
-
-                var value = (int)this.config.DeathSfx;
-                if (ImGui.Combo("Death Sfx", ref value, new[] {"Malenia", "Old"}, 2))
+                
+                ImGui.Separator();
+                configValue = this.config.ShowDebug;
+                if (ImGui.Checkbox("Enable Debug output", ref configValue))
                 {
-                    this.config.DeathSfx = (Configuration.DeathSfxType) value;
+                    this.config.ShowDebug = configValue;
+                    // can save immediately on change, if you don't want to provide a "Save and Close" button
                     this.config.Save();
                 }
             }

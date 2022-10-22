@@ -23,7 +23,9 @@ namespace EldenRing
 
         public bool ShowDeath { get; set; } = true;
 
-        public bool ShowIntro { get; set; } = true;
+        public bool ShowIntro { get; set; } = false;
+
+        public bool ShowDebug { get; set; } = false;
 
         public DeathSfxType DeathSfx { get; set; } = DeathSfxType.Old;
 
