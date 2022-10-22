@@ -139,7 +139,7 @@ namespace EldenRing
 
             if (erDeathBgTexture == null || erNormalDeathTexture == null || erCraftFailedTexture == null)
             {
-                PluginLog.Error("Elden: Failed to load images");
+                PluginLog.Error("Failed to load images");
                 return;
             }
 
@@ -178,6 +178,13 @@ namespace EldenRing
             
             var cat = *(ushort*)(dataptr + 0x00);
             var updateType = *(uint*)(dataptr + 0x08);
+            if (cat == 0xA1)
+            {
+                if (Config.ShowDebug)
+                {
+                    Service.ChatGui.Print($"SetBgm");
+                }
+            }
 
             if (cat == 0x6D)
             {
@@ -200,10 +207,10 @@ namespace EldenRing
                 if (updateType == (uint) DirectorUpdateType.MusicChange && IsDungeon() && Config.ShowIntro)
                 {
                     musicChangeCounter++;
-                    PluginLog.Verbose($"Elden: musicChangeCounter: {musicChangeCounter}");
+                    PluginLog.Verbose($"musicChangeCounter: {musicChangeCounter}");
                     if (musicChangeCounter == 5)
                     {
-                        PluginLog.Verbose("Elden: Malenia Intro");
+                        PluginLog.Verbose("Malenia Intro");
                         Task.Delay(1000).ContinueWith(_ =>
                         {
                             if (this.AudioHandler.IsPlaying())
@@ -215,8 +222,8 @@ namespace EldenRing
                 if (updateType == (uint?) DirectorUpdateType.DutyCommence && IsDungeon())
                 {
                     musicChangeCounter = 0;
-                    PluginLog.Verbose($"Elden: ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
-                    PluginLog.Verbose($"Elden: reset musicChangeCounter: {musicChangeCounter}");
+                    PluginLog.Verbose($"ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
+                    PluginLog.Verbose($"reset musicChangeCounter: {musicChangeCounter}");
                 }
             }
         }
@@ -228,7 +235,7 @@ namespace EldenRing
             if (Config.ShowCraftFailed && message.TextValue.Contains(this.synthesisFailsMessage))
             {
                 this.PlayAnimation(AnimationType.CraftFailed);
-                PluginLog.Verbose("Elden: Craft failed");
+                PluginLog.Verbose("Craft failed");
             }
         }
 
@@ -254,7 +261,13 @@ namespace EldenRing
             if (Config.ShowIntro && Service.Condition[ConditionFlag.BoundByDuty] 
                                  && flag == ConditionFlag.InCombat && value && Is8ManDuty())
             {
-                
+                PluginLog.Verbose($"ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
+                PluginLog.Verbose("Malenia Intro");
+
+                if (!this.AudioHandler.IsPlaying())
+                {
+                    this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
+                }
             }
             if (Config.ShowDeath && flag == ConditionFlag.Unconscious && value)
             {
@@ -263,7 +276,7 @@ namespace EldenRing
                 {
                     AudioHandler.PlaySound(DeathSfx);
                 }
-                PluginLog.Verbose($"Elden: Player died {value}");
+                PluginLog.Verbose($"Player died {value}");
             }
         }
 
@@ -419,7 +432,7 @@ namespace EldenRing
                         if (name == "IsSndSe")
                         {
                             var value = entry.Value.UInt;
-                            PluginLog.Verbose("Elden: {Name} - {Type} - {Value}", name, entry.Type, value);
+                            PluginLog.Verbose("{Name} - {Type} - {Value}", name, entry.Type, value);
 
                             seEnabled = value == 0;
                         }
@@ -427,7 +440,7 @@ namespace EldenRing
                         if (name == "IsSndMaster")
                         {
                             var value = entry.Value.UInt;
-                            PluginLog.Verbose("Elden: {Name} - {Type} - {Value}", name, entry.Type, value);
+                            PluginLog.Verbose("{Name} - {Type} - {Value}", name, entry.Type, value);
 
                             masterEnabled = value == 0;
                         }
@@ -438,7 +451,7 @@ namespace EldenRing
             }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Elden: Error checking if sfx is enabled");
+                PluginLog.Error(ex, "Error checking if sfx is enabled");
                 return true;
             }
         }
