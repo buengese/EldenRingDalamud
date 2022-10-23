@@ -2,9 +2,8 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
-using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
-using Dalamud.Game;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.Network;
 using Dalamud.Game.Text;
@@ -19,6 +18,7 @@ using ImGuiScene;
 using Lumina.Excel.GeneratedSheets;
 
 using Dalamud.Game.Command;
+using Dalamud.Hooking;
 using Dalamud.Plugin;
 using Dalamud.Logging;
 using EldenRing.Audio;
@@ -46,6 +46,8 @@ namespace EldenRing
         private PluginUI PluginUI { get; }
         private Configuration Config { get; }
         
+        private PluginAddressResolver address;
+        
         private AnimationState currentState = AnimationState.NotPlaying;
         private AnimationType currentAnimationType = AnimationType.Death;
 
@@ -59,6 +61,8 @@ namespace EldenRing
         private int msWaitTime = 1600;
 
         private int musicChangeCounter = 0;
+
+        private readonly Hook<SetGlobalBgmDelegate> setGlobalBgmHook;
 
         private TextureWrap TextTexture => this.currentAnimationType switch
         {
@@ -90,11 +94,12 @@ namespace EldenRing
             DutyComplete = 0x40000003,
             DutyWipe = 0x40000005,
             DutyRecommence = 0x40000006,
-            DutyUpdate = 0x40000007,
+            DutySetFlag = 0x40000007,
+            DutyTime = 0x40000010,
             DutyBarrierUp = 0x40000012,
             
-            DungeonSetup = 0x80000000,
             MusicChange = 0x80000001,
+            MaybeInstanceTimeSync = 0x80000002,
 
             DungeonBossStartEnd15 = 0x80000015,
             DungeonBossStartEnd16 = 0x80000016,
@@ -123,8 +128,11 @@ namespace EldenRing
             Config = pluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
             Config.Initialize(pluginInterface);
 
-            PluginUI = new PluginUI(Config);
+            this.address = new PluginAddressResolver();
+            this.address.Setup(Service.SigScanner);
+            this.setGlobalBgmHook = Hook<SetGlobalBgmDelegate>.FromAddress(this.address.SetGlobalBGM, this.HandleSetGlobalBgmDetour);
 
+            PluginUI = new PluginUI(Config);
             erDeathBgTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_death_bg.png"))!;
             erNormalDeathTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_normal_death.png"))!;
             erCraftFailedTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_craft_failed.png"))!;
@@ -147,17 +155,14 @@ namespace EldenRing
             int vol = (int)(this.Config.Volume * 100f);
             PluginLog.Debug($"Volume set to {vol}%");
 
-
             Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
             {
                 HelpMessage = "Used to control the volume of the audio using \"vol 0-100\""
             });
 
-
             synthesisFailsMessage = Service.DataManager.GetExcelSheet<LogMessage>()!.GetRow(1160)!.Text.ToDalamudString().TextValue;
             territories = Service.DataManager.GetExcelSheet<TerritoryType>()!;
             
-
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += PluginUI.Draw;
             pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
@@ -166,6 +171,20 @@ namespace EldenRing
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange += ConditionOnChanged;
         }
+        
+        [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
+        private delegate IntPtr SetGlobalBgmDelegate(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6);
+        
+        private IntPtr HandleSetGlobalBgmDetour(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6)
+        {
+            var retVal = this.setGlobalBgmHook.Original(bgmKey, a2, a3, a4, a5, a6);
+            if (Config.ShowDebug)
+            {
+                Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
+            }
+            
+            return retVal;
+        }
 
         private unsafe void GameNetworkOnNetworkMessage(IntPtr dataptr, ushort opcode, uint sourceactorid, uint targetactorid, NetworkMessageDirection direction)
         {
@@ -173,7 +192,8 @@ namespace EldenRing
                 return;
             
             var dataManager = Service.DataManager;
-            if (opcode != dataManager.ServerOpCodes["ActorControlSelf"]) // pull the opcode from Dalamud's definitions
+            if (opcode != dataManager.ServerOpCodes["ActorControlSelf"] && 
+                opcode != dataManager.ServerOpCodes["ActorControl"]) // pull the opcode from Dalamud's definitions
                 return;
             
             var cat = *(ushort*)(dataptr + 0x00);
@@ -481,6 +501,7 @@ namespace EldenRing
             // Service.Framework.Update -= FrameworkOnUpdate;
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
+            Service.Condition.ConditionChange -= ConditionOnChanged;
 
             erDeathBgTexture.Dispose();
             erNormalDeathTexture.Dispose();

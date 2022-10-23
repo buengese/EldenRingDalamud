@@ -52,4 +52,7 @@ internal class Service
 
     [PluginService]
     internal static Condition Condition { get; private set; } = null;
+
+    [PluginService]
+    internal static SigScanner SigScanner { get; private set; } = null;
 }
