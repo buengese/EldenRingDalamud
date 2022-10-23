@@ -193,7 +193,7 @@ namespace EldenRing
             
             var dataManager = Service.DataManager;
             if (opcode != dataManager.ServerOpCodes["ActorControlSelf"] && 
-                opcode != dataManager.ServerOpCodes["ActorControl"]) // pull the opcode from Dalamud's definitions
+                opcode != 0x39E) // pull the opcode from Dalamud's definitions
                 return;
             
             var cat = *(ushort*)(dataptr + 0x00);
@@ -258,23 +258,6 @@ namespace EldenRing
                 PluginLog.Verbose("Craft failed");
             }
         }
-
-        /*private void FrameworkOnUpdate(Framework framework)
-        {
-            var isUnconscious = Service.Condition[ConditionFlag.Unconscious];
-
-            if (Config.ShowDeath && isUnconscious && !this.lastFrameUnconscious)
-            {
-                PlayAnimation(AnimationType.Death);
-                if (CheckIsSfxEnabled())
-                {
-                    AudioHandler.PlaySound(DeathSfx);
-                }
-                PluginLog.Verbose($"Elden: Player died {isUnconscious}");
-            }
-
-            lastFrameUnconscious = isUnconscious;
-        }*/
 
         private void ConditionOnChanged(ConditionFlag flag, bool value)
         {
@@ -503,6 +486,7 @@ namespace EldenRing
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange -= ConditionOnChanged;
 
+            setGlobalBgmHook.Dispose();
             erDeathBgTexture.Dispose();
             erNormalDeathTexture.Dispose();
             erCraftFailedTexture.Dispose();
