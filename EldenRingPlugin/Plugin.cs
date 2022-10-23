@@ -131,6 +131,7 @@ namespace EldenRing
             this.address = new PluginAddressResolver();
             this.address.Setup(Service.SigScanner);
             this.setGlobalBgmHook = Hook<SetGlobalBgmDelegate>.FromAddress(this.address.SetGlobalBGM, this.HandleSetGlobalBgmDetour);
+            this.setGlobalBgmHook.Enable();
 
             PluginUI = new PluginUI(Config);
             erDeathBgTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_death_bg.png"))!;
@@ -178,6 +179,7 @@ namespace EldenRing
         private IntPtr HandleSetGlobalBgmDetour(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6)
         {
             var retVal = this.setGlobalBgmHook.Original(bgmKey, a2, a3, a4, a5, a6);
+            
             if (Config.ShowDebug)
             {
                 Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
