@@ -61,6 +61,7 @@ namespace EldenRing
         private int msWaitTime = 1600;
 
         private int musicChangeCounter = 0;
+        private int songChangeCounter = 0;
 
         private readonly Hook<SetGlobalBgmDelegate> setGlobalBgmHook;
 
@@ -167,7 +168,6 @@ namespace EldenRing
             pluginInterface.UiBuilder.Draw += Draw;
             pluginInterface.UiBuilder.Draw += PluginUI.Draw;
             pluginInterface.UiBuilder.OpenConfigUi += PluginUI.ToggleSettings;
-            // Service.Framework.Update += FrameworkOnUpdate;
             Service.ChatGui.ChatMessage += ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage += GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange += ConditionOnChanged;
@@ -183,6 +183,20 @@ namespace EldenRing
             if (Config.ShowDebug)
             {
                 Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
+                songChangeCounter++;
+                if (songChangeCounter == 3)
+                {
+                    PluginLog.Verbose("Malenia Intro");
+                    if (Config.ShowDebug)
+                    {
+                        Service.ChatGui.Print("Malenia Intro");
+                    }
+
+                    if (!this.AudioHandler.IsPlaying())
+                    {
+                        this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
+                    }
+                } 
             }
             
             return retVal;
@@ -194,20 +208,13 @@ namespace EldenRing
                 return;
             
             var dataManager = Service.DataManager;
-            if (opcode != dataManager.ServerOpCodes["ActorControlSelf"] && 
-                opcode != 0x39E) // pull the opcode from Dalamud's definitions
+            if (opcode != dataManager.ServerOpCodes["ActorControlSelf"]) // pull the opcode from Dalamud's definitions
                 return;
             
             var cat = *(ushort*)(dataptr + 0x00);
+            var instance = *(uint*) (dataptr + 0x04);
             var updateType = *(uint*)(dataptr + 0x08);
-            if (cat == 0xA1)
-            {
-                if (Config.ShowDebug)
-                {
-                    Service.ChatGui.Print($"SetBgm");
-                }
-            }
-
+            
             if (cat == 0x6D)
             {
                 if (Config.ShowDebug)
@@ -224,34 +231,23 @@ namespace EldenRing
                         if (this.AudioHandler.IsPlaying())
                             return;
                         this.AudioHandler.PlaySound(AudioTrigger.MaleniaKilled);
-                    });
+                    }); 
                 }
                 if (updateType == (uint) DirectorUpdateType.MusicChange && IsDungeon() && Config.ShowIntro)
                 {
                     musicChangeCounter++;
                     PluginLog.Verbose($"musicChangeCounter: {musicChangeCounter}");
-                    if (musicChangeCounter == 5)
-                    {
-                        PluginLog.Verbose("Malenia Intro");
-                        Task.Delay(1000).ContinueWith(_ =>
-                        {
-                            if (this.AudioHandler.IsPlaying())
-                                return;
-                            this.AudioHandler.PlaySound(AudioTrigger.MaleniaIntro);
-                        });
-                    }
                 }
                 if (updateType == (uint?) DirectorUpdateType.DutyCommence && IsDungeon())
                 {
                     musicChangeCounter = 0;
-                    PluginLog.Verbose($"ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
+                    songChangeCounter = 0;
                     PluginLog.Verbose($"reset musicChangeCounter: {musicChangeCounter}");
                 }
             }
         }
         
         
-
         private void ChatGuiOnChatMessage(XivChatType type, uint senderid, ref SeString sender, ref SeString message, ref bool ishandled)
         {
             if (Config.ShowCraftFailed && message.TextValue.Contains(this.synthesisFailsMessage))
@@ -266,8 +262,11 @@ namespace EldenRing
             if (Config.ShowIntro && Service.Condition[ConditionFlag.BoundByDuty] 
                                  && flag == ConditionFlag.InCombat && value && Is8ManDuty())
             {
-                PluginLog.Verbose($"ContentType: {GetContentType()}, IsDungeon: {IsDungeon()}, Is8ManDuty: {Is8ManDuty()}");
                 PluginLog.Verbose("Malenia Intro");
+                if (Config.ShowDebug)
+                {
+                    Service.ChatGui.Print("Malenia Intro");
+                }
 
                 if (!this.AudioHandler.IsPlaying())
                 {
@@ -483,7 +482,6 @@ namespace EldenRing
             Service.Interface.UiBuilder.Draw -= Draw;
             Service.Interface.UiBuilder.Draw -= PluginUI.Draw;
             Service.Interface.UiBuilder.OpenConfigUi -= PluginUI.ToggleSettings;
-            // Service.Framework.Update -= FrameworkOnUpdate;
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange -= ConditionOnChanged;
