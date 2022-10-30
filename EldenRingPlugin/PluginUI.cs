@@ -124,6 +124,14 @@ namespace EldenRing
                     this.config.Save();
                 }
                 
+                configValue = this.config.EmotionalDamage;
+                if (ImGui.Checkbox("Emotional Damage", ref configValue))
+                {
+                    this.config.EmotionalDamage = configValue;
+                    // can save immediately on change, if you don't want to provide a "Save and Close" button
+                    this.config.Save();
+                }
+                
                 ImGui.Separator();
                 configValue = this.config.ShowDebug;
                 if (ImGui.Checkbox("Enable Debug output", ref configValue))

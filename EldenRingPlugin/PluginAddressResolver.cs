@@ -26,5 +26,6 @@ internal class PluginAddressResolver : BaseAddressResolver
 
         PluginLog.Verbose("===== EldenRingPlugin =====");
         PluginLog.Verbose($"{nameof(this.SetGlobalBGM)}    0x{this.SetGlobalBGM:X}");
+        PluginLog.Verbose($"{nameof(this.ActionIntegrity)} 0x{this.ActionIntegrity:X}");
     }
 }

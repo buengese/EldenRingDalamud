@@ -76,7 +76,7 @@ namespace EldenRing
 
         private AudioTrigger DeathSfx => Config.DeathSfx switch
         {
-            Configuration.DeathSfxType.Malenia => AudioTrigger.Malenia,
+            Configuration.DeathSfxType.Malenia => AudioTrigger.DeathMalenia,
             Configuration.DeathSfxType.Old => AudioTrigger.Death,
             _ => throw new ArgumentOutOfRangeException()
         };
@@ -184,10 +184,10 @@ namespace EldenRing
 
             AudioHandler = new();
             AudioHandler.LoadSound(AudioTrigger.Death, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_death_er.wav"));
-            AudioHandler.LoadSound(AudioTrigger.Malenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_death_er.wav"));
+            AudioHandler.LoadSound(AudioTrigger.DeathMalenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_death_er.wav"));
             AudioHandler.LoadSound(AudioTrigger.MaleniaKilled, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_enemy_felled_er.wav"));
             AudioHandler.LoadSound(AudioTrigger.MaleniaIntro, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_intro_er.wav"));
-            
+            AudioHandler.LoadSound(AudioTrigger.Vulnerability, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_emotional_damage.wav"));
 
             if (erDeathBgTexture == null || erNormalDeathTexture == null || erCraftFailedTexture == null)
             {
@@ -248,7 +248,10 @@ namespace EldenRing
         
         private unsafe void ActionIntegrityDelegateDetour(uint targetId, IntPtr actionIntegrityData, bool isReplay) {
             actionIntegrityDelegateHook.Original(targetId, actionIntegrityData, isReplay);
-            
+
+            if (!Config.EmotionalDamage)
+                return;
+
             try {
                 var message = (AddStatusEffect*)actionIntegrityData;
 
@@ -272,6 +275,10 @@ namespace EldenRing
                         if (Config.ShowDebug)
                         {
                             Service.ChatGui.Print("Emotional Damage!");
+                        }
+                        if (!this.AudioHandler.IsPlaying())
+                        {
+                            this.AudioHandler.PlaySound(AudioTrigger.Vulnerability);
                         }
                     }
                 }

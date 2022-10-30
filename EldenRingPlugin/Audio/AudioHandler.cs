@@ -9,9 +9,10 @@ namespace EldenRing.Audio
     public enum AudioTrigger
     {
         Death,
-        Malenia,
+        DeathMalenia,
         MaleniaKilled,
-        MaleniaIntro
+        MaleniaIntro,
+        Vulnerability
     }
 
     // Cached sound concept lovingly borrowed from: https://markheath.net/post/fire-and-forget-audio-playback-with
