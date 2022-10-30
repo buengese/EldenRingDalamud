@@ -5,6 +5,7 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Game.ClientState.Conditions;
+using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Network;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
@@ -53,9 +54,7 @@ namespace EldenRing
 
         private Easing alphaEasing;
         private Easing scaleEasing;
-
-        private bool lastFrameUnconscious;
-
+        
         private int msFadeInTime = 1000;
         private int msFadeOutTime = 2000;
         private int msWaitTime = 1600;
@@ -64,6 +63,8 @@ namespace EldenRing
         private int songChangeCounter = 0;
 
         private readonly Hook<SetGlobalBgmDelegate> setGlobalBgmHook;
+        private readonly Hook<ActionIntegrityDelegate> actionIntegrityDelegateHook;
+
 
         private TextureWrap TextTexture => this.currentAnimationType switch
         {
@@ -87,23 +88,60 @@ namespace EldenRing
             Wait,
             FadeOut,
         }
+        
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct AddStatusEffect {
+            private uint Unknown1;
+            private uint RelatedActionSequence;
+            private uint ActorId;
+            private uint CurrentHp;
+            private uint MaxHp;
+            private ushort CurrentMp;
+            private ushort Unknown3;
+            private byte DamageShield;
+            public byte EffectCount;
+            private ushort Unknown6;
+
+            public unsafe fixed byte Effects[64];
+        }
+        
+        [StructLayout(LayoutKind.Sequential, Pack = 1)]
+        private struct StatusEffectAddEntry {
+            public byte EffectIndex;
+            public byte Unknown1;
+            public ushort EffectId;
+            public ushort Unknown2;
+            public ushort Unknown3;
+            public float Duration;
+            public uint SourceActorId;
+        }
 
         // ReSharper disable UnusedMember.Local
         private enum DirectorUpdateType : uint
         {
-            DutyCommence = 0x40000001,
-            DutyComplete = 0x40000003,
-            DutyWipe = 0x40000005,
-            DutyRecommence = 0x40000006,
-            DutySetFlag = 0x40000007,
-            DutyTime = 0x40000010,
-            DutyBarrierUp = 0x40000012,
-            
-            MusicChange = 0x80000001,
-            MaybeInstanceTimeSync = 0x80000002,
+            DutyInit = 0x40000001, //  params: 3: duty length in seconds, eg 0xE10 is 3600 or 1 hour, 4-6: unused
+            DutyComplete = 0x40000002, // "Duty Complete" flying text
+            DutyClear = 0x40000003, // Emits when a piece of content is 'cleared'
+            DutyTimeSync = 0x40000004, // The duty time in seconds
+            DutyFadeout = 0x40000005, // Instructs the screen to fade to black, used on group wipe
+            DutyRecommence = 0x40000006, // When duty is restarted
+            DutySetFlag = 0x40000007, // Sets some internal boolean flags in director
+            DutyInitVote = 0x40000008, // init vote (ie abandon, kick, etc) – params: 3: vote type, 4: vote initiator, 5-6: unknown
+            DutyConcludeVote = 0x40000009, // conclude vote – params: 3: vote type, 4: 1 for succeed/0 for fail, 5: vote initiator, 6: unknown
+            DutyPartyInvite = 0x4000000A, // seems to be something related to party invites
+            DutyGate = 0x4000000C, // This command sets the state of artificial walls in duties, such as gates in Doma Castle or water walls in Neverreap
+            DutyNewPlayer = 0x4000000D, // This command comes in when one or more members in the instance are new to the duty
+            DutyLevelUp = 0x4000000E, // This command comes in when a player levels up in the duty
+            DutyFadeIn = 0x40000010, // Causes a fade-in to happen
+            DutyBarrierUp = 0x40000012, // Puts an 'instance' barrier up
+            /*
+            * This command lists how many party members are eligible for duty rewards. The number of chests dropped in locked content
+            * appears to be hardcoded into the client, and as such doesn't change this packet.
+            */
+            DutyParyLoot = 0x40000013,
 
-            DungeonBossStartEnd15 = 0x80000015,
-            DungeonBossStartEnd16 = 0x80000016,
+            MusicChange = 0x80000001, // When background music changes in duties, i.e. boss music in dungeons
+            InstanceTimeSync = 0x80000002,
         }
 
         private enum AnimationType
@@ -133,6 +171,10 @@ namespace EldenRing
             this.address.Setup(Service.SigScanner);
             this.setGlobalBgmHook = Hook<SetGlobalBgmDelegate>.FromAddress(this.address.SetGlobalBGM, this.HandleSetGlobalBgmDetour);
             this.setGlobalBgmHook.Enable();
+            this.actionIntegrityDelegateHook =
+                Hook<ActionIntegrityDelegate>.FromAddress(this.address.ActionIntegrity,
+                    this.ActionIntegrityDelegateDetour);
+            this.actionIntegrityDelegateHook.Enable();
 
             PluginUI = new PluginUI(Config);
             erDeathBgTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_death_bg.png"))!;
@@ -176,6 +218,9 @@ namespace EldenRing
         [UnmanagedFunctionPointer(CallingConvention.ThisCall)]
         private delegate IntPtr SetGlobalBgmDelegate(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6);
         
+        private delegate void ActionIntegrityDelegate(uint targetId, IntPtr actionIntegrityData, bool isReplay);
+
+        
         private IntPtr HandleSetGlobalBgmDetour(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6)
         {
             var retVal = this.setGlobalBgmHook.Original(bgmKey, a2, a3, a4, a5, a6);
@@ -184,9 +229,8 @@ namespace EldenRing
             {
                 Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
                 songChangeCounter++;
-                if (songChangeCounter == 3)
+                if (musicChangeCounter >= 3)
                 {
-                    PluginLog.Verbose("Malenia Intro");
                     if (Config.ShowDebug)
                     {
                         Service.ChatGui.Print("Malenia Intro");
@@ -200,6 +244,40 @@ namespace EldenRing
             }
             
             return retVal;
+        }
+        
+        private unsafe void ActionIntegrityDelegateDetour(uint targetId, IntPtr actionIntegrityData, bool isReplay) {
+            actionIntegrityDelegateHook.Original(targetId, actionIntegrityData, isReplay);
+            
+            try {
+                var message = (AddStatusEffect*)actionIntegrityData;
+
+                /*if (Service.ObjectTable.SearchById(targetId) is not PlayerCharacter p)
+                    return;*/
+                if (targetId != Service.ClientState.LocalPlayer?.ObjectId)
+                    return;
+
+                var effects = (StatusEffectAddEntry*)message->Effects;
+                var effectCount = Math.Min(message->EffectCount, 4u);
+                for (uint j = 0; j < effectCount; j++) {
+                    var effect = effects[j];
+                    var effectId = effect.EffectId;
+                    if (effectId <= 0)
+                        continue;
+                    if (effect.Duration < 0)
+                        continue;
+                    var status = Service.DataManager.Excel.GetSheet<Status>()?.GetRow(effectId);
+                    if (status?.Icon is 17101 or 15020)
+                    {
+                        if (Config.ShowDebug)
+                        {
+                            Service.ChatGui.Print("Emotional Damage!");
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                PluginLog.Error(e, "Caught unexpected exception");
+            }
         }
 
         private unsafe void GameNetworkOnNetworkMessage(IntPtr dataptr, ushort opcode, uint sourceactorid, uint targetactorid, NetworkMessageDirection direction)
@@ -223,7 +301,7 @@ namespace EldenRing
                     Service.ChatGui.Print($"Director update: {name} ({updateType:x8})");
                 }
 
-                if (updateType == (uint) DirectorUpdateType.DutyComplete && Config.ShowEnemyFelled)
+                if (updateType == (uint) DirectorUpdateType.DutyClear && Config.ShowEnemyFelled)
                 {
                     Task.Delay(1000).ContinueWith(_ =>
                     {
@@ -238,7 +316,7 @@ namespace EldenRing
                     musicChangeCounter++;
                     PluginLog.Verbose($"musicChangeCounter: {musicChangeCounter}");
                 }
-                if (updateType == (uint?) DirectorUpdateType.DutyCommence && IsDungeon())
+                if (updateType == (uint?) DirectorUpdateType.DutyInit && IsDungeon())
                 {
                     musicChangeCounter = 0;
                     songChangeCounter = 0;
@@ -262,7 +340,6 @@ namespace EldenRing
             if (Config.ShowIntro && Service.Condition[ConditionFlag.BoundByDuty] 
                                  && flag == ConditionFlag.InCombat && value && Is8ManDuty())
             {
-                PluginLog.Verbose("Malenia Intro");
                 if (Config.ShowDebug)
                 {
                     Service.ChatGui.Print("Malenia Intro");
@@ -486,6 +563,7 @@ namespace EldenRing
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange -= ConditionOnChanged;
 
+            actionIntegrityDelegateHook.Dispose();
             setGlobalBgmHook.Dispose();
             erDeathBgTexture.Dispose();
             erNormalDeathTexture.Dispose();

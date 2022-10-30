@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Authors>buengese</Authors>
-    <Version>0.0.2.0</Version>
+    <Version>0.0.2.1</Version>
     <Description>Elden Ring April Fools addon</Description>
     <Copyright>2022</Copyright>
 	<NoWarn>IDE0003</NoWarn>
