@@ -229,7 +229,7 @@ namespace EldenRing
             {
                 Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
                 songChangeCounter++;
-                if (musicChangeCounter >= 3)
+                if (musicChangeCounter == 4)
                 {
                     if (Config.ShowDebug)
                     {
@@ -569,6 +569,9 @@ namespace EldenRing
             Service.ChatGui.ChatMessage -= ChatGuiOnChatMessage;
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange -= ConditionOnChanged;
+            
+            actionIntegrityDelegateHook.Disable();
+            setGlobalBgmHook.Disable();
 
             actionIntegrityDelegateHook.Dispose();
             setGlobalBgmHook.Dispose();
