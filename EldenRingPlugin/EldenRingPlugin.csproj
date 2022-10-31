@@ -2,7 +2,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Authors>buengese</Authors>
-    <Version>0.0.2.3</Version>
+    <Version>0.0.2.4</Version>
     <Description>Elden Ring April Fools addon</Description>
     <Copyright>2022</Copyright>
 	<NoWarn>IDE0003</NoWarn>
@@ -100,6 +100,11 @@
       <HintPath>$(DalamudLibPath)Lumina.Excel.dll</HintPath>
       <Private>false</Private>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Game" />
+    <Folder Include="Helpers" />
   </ItemGroup>
 	<Target Name="CopyToDevPlugins" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
 		<Exec Command="if not exist $(AppData)\XIVLauncher\devPlugins\$(TargetName) (mkdir $(AppData)\XIVLauncher\devPlugins\$(TargetName))" />

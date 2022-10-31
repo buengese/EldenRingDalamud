@@ -5,7 +5,6 @@ using System.Numerics;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Dalamud.Game.ClientState.Conditions;
-using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Game.Network;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
@@ -60,7 +59,6 @@ namespace EldenRing
         private int msWaitTime = 1600;
 
         private int musicChangeCounter = 0;
-        private int songChangeCounter = 0;
 
         private readonly Hook<SetGlobalBgmDelegate> setGlobalBgmHook;
         private readonly Hook<ActionIntegrityDelegate> actionIntegrityDelegateHook;
@@ -182,7 +180,7 @@ namespace EldenRing
             erCraftFailedTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_craft_failed.png"))!;
             erEnemyFelledTexture = pluginInterface.UiBuilder.LoadImage(Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "er_enemy_felled.png"))!;
 
-            AudioHandler = new();
+            AudioHandler = new AudioHandler();
             AudioHandler.LoadSound(AudioTrigger.Death, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_death_er.wav"));
             AudioHandler.LoadSound(AudioTrigger.DeathMalenia, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_malenia_death_er.wav"));
             AudioHandler.LoadSound(AudioTrigger.MaleniaKilled, Path.Combine(pluginInterface.AssemblyLocation.Directory?.FullName!, "snd_enemy_felled_er.wav"));
@@ -196,7 +194,7 @@ namespace EldenRing
             }
 
             AudioHandler.Volume = this.Config.Volume;
-            int vol = (int)(this.Config.Volume * 100f);
+            var vol = (int)(this.Config.Volume * 100f);
             PluginLog.Debug($"Volume set to {vol}%");
 
             Service.CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
@@ -224,11 +222,13 @@ namespace EldenRing
         private IntPtr HandleSetGlobalBgmDetour(ushort bgmKey, byte a2, uint a3, uint a4, uint a5, byte a6)
         {
             var retVal = this.setGlobalBgmHook.Original(bgmKey, a2, a3, a4, a5, a6);
+
+            if (!IsDungeon() || bgmKey == 1)
+                return retVal;
             
             if (Config.ShowDebug)
             {
                 Service.ChatGui.Print($"SetGlobalBGM {bgmKey}");
-                songChangeCounter++;
                 if (musicChangeCounter == 4)
                 {
                     if (Config.ShowDebug)
@@ -242,7 +242,6 @@ namespace EldenRing
                     }
                 } 
             }
-            
             return retVal;
         }
         
@@ -254,9 +253,7 @@ namespace EldenRing
 
             try {
                 var message = (AddStatusEffect*)actionIntegrityData;
-
-                /*if (Service.ObjectTable.SearchById(targetId) is not PlayerCharacter p)
-                    return;*/
+                
                 if (targetId != Service.ClientState.LocalPlayer?.ObjectId)
                     return;
 
@@ -326,7 +323,6 @@ namespace EldenRing
                 if (updateType == (uint?) DirectorUpdateType.DutyInit && IsDungeon())
                 {
                     musicChangeCounter = 0;
-                    songChangeCounter = 0;
                     PluginLog.Verbose($"reset musicChangeCounter: {musicChangeCounter}");
                 }
             }
@@ -570,11 +566,12 @@ namespace EldenRing
             Service.GameNetwork.NetworkMessage -= GameNetworkOnNetworkMessage;
             Service.Condition.ConditionChange -= ConditionOnChanged;
             
-            actionIntegrityDelegateHook.Disable();
-            setGlobalBgmHook.Disable();
+            actionIntegrityDelegateHook?.Disable();
+            actionIntegrityDelegateHook?.Dispose();
 
-            actionIntegrityDelegateHook.Dispose();
-            setGlobalBgmHook.Dispose();
+            setGlobalBgmHook?.Disable();
+            setGlobalBgmHook?.Dispose();
+            
             erDeathBgTexture.Dispose();
             erNormalDeathTexture.Dispose();
             erCraftFailedTexture.Dispose();
